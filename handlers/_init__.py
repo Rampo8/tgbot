@@ -1,6 +1,5 @@
-# Этот файл делает папку handlers Python-пакетом
-# Через него импортируются все обработчики (роутеры)
 
+from . import video, start
 from . import video
 from . import photo
 from . import start

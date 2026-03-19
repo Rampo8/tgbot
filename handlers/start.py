@@ -5,10 +5,6 @@ router = Router()
 
 @router.message(Command("start"))
 async def start_cmd(message: types.Message):
-    """
-    Обработчик команды /start
-    Показывает пользователю информацию о возможностях бота
-    """
     welcome_text = (
         "👋 *Привет! Я медиа-бот для работы с файлами.*\n\n"
         "🎬 *Скачать видео:*\n"
@@ -29,10 +25,6 @@ async def start_cmd(message: types.Message):
 
 @router.message(Command("help"))
 async def help_cmd(message: types.Message):
-    """
-    Обработчик команды /help
-    Показывает подробную справку
-    """
     help_text = (
         "📚 *Справка по боту*\n\n"
         "🔹 *Команды:*\n"
@@ -61,10 +53,6 @@ async def help_cmd(message: types.Message):
 
 @router.message(Command("settings"))
 async def settings_cmd(message: types.Message):
-    """
-    Обработчик команды /settings
-    Показывает текущие настройки бота
-    """
     from config import (
         MAX_FILE_SIZE, 
         VIDEO_MAX_HEIGHT, 

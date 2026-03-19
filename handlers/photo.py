@@ -8,44 +8,30 @@ router = Router()
 
 @router.message(lambda msg: msg.photo)
 async def handle_photo(message: types.Message):
-    """
-    Обработчик фотографий — улучшает качество и отправляет обратно
-    """
-    # Отправляем сообщение о начале обработки
     wait_msg = await message.answer("⏳ *Улучшаю качество фото...*\n\n"
                                     "Применяю: резкость, контраст, яркость",
                                     parse_mode="Markdown")
     
     try:
-        # Получаем фото в наилучшем качестве (последнее в списке)
         photo = message.photo[-1]
         
-        # Скачиваем фото от пользователя
         file = await message.bot.get_file(photo.file_id)
         file_path = os.path.join(DOWNLOAD_DIR, file.file_path)
         
-        # Создаем директорию если нужно
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
-        # Скачиваем файл
         await message.bot.download_file(file.file_path, file_path)
         
-        # Получаем размер исходного файла
         original_size = os.path.getsize(file_path)
         
-        # Обновляем статус
         await wait_msg.edit_text("⏳ *Обрабатываю...*")
         
-        # Улучшаем фото
         enhanced_path = enhance_photo(file_path)
         
-        # Получаем размер улучшенного файла
         enhanced_size = os.path.getsize(enhanced_path)
         
-        # Обновляем статус
         await wait_msg.edit_text("✅ *Готово! Отправляю...*")
         
-        # Отправляем улучшенное фото
         await message.answer_photo(
             photo=types.FSInputFile(enhanced_path),
             caption=(
@@ -60,13 +46,11 @@ async def handle_photo(message: types.Message):
             parse_mode="Markdown"
         )
         
-        # Удаляем файлы после отправки
         if os.path.exists(file_path):
             os.remove(file_path)
         if os.path.exists(enhanced_path):
             os.remove(enhanced_path)
         
-        # Удаляем сообщение о статусе
         await wait_msg.delete()
         
     except FileNotFoundError as e:
@@ -100,7 +84,6 @@ async def handle_photo(message: types.Message):
         except:
             pass
         
-        # Чистим файлы если они остались
         cleanup_photo_files()
 
 
@@ -114,31 +97,25 @@ async def handle_image_document(message: types.Message):
                                     parse_mode="Markdown")
     
     try:
-        # Скачиваем документ
         file = await message.bot.get_file(message.document.file_id)
         file_path = os.path.join(DOWNLOAD_DIR, file.file_path)
         
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         await message.bot.download_file(file.file_path, file_path)
         
-        # Улучшаем фото
         enhanced_path = enhance_photo(file_path)
         
-        # Отправляем как документ (чтобы сохранить качество)
         await message.answer_document(
             document=types.FSInputFile(enhanced_path),
             caption="✨ *Фото улучшено!* (отправлено как документ)",
             parse_mode="Markdown"
         )
         
-        # Удаляем файлы
         if os.path.exists(file_path):
             os.remove(file_path)
         if os.path.exists(enhanced_path):
             os.remove(enhanced_path)
-        
         await wait_msg.delete()
-        
     except Exception as e:
         await message.answer(
             f"❌ *Ошибка:* `{str(e)[:200]}`",
@@ -148,12 +125,7 @@ async def handle_image_document(message: types.Message):
             await wait_msg.delete()
         except:
             pass
-
-
 def is_image_document(document):
-    """
-    Проверяет, является ли документ изображением.
-    """
     image_mime_types = [
         'image/jpeg',
         'image/png',
@@ -165,9 +137,7 @@ def is_image_document(document):
 
 
 def cleanup_photo_files():
-    """
-    Очищает оставшиеся файлы из папки загрузок.
-    """
+   
     try:
         for filename in os.listdir(DOWNLOAD_DIR):
             if filename.startswith('enhanced_') or filename.endswith(('.jpg', '.jpeg', '.png')):
