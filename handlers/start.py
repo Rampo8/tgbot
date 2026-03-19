@@ -1,26 +1,186 @@
-from aiogram import types, Router
+from aiogram import types, Router, F
 from aiogram.filters import Command
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from utils.subscription import check_subscription, get_subscribe_keyboard, SUBSCRIBE_MESSAGE
 
 router = Router()
 
+class UserMode(StatesGroup):
+    video = State()
+    photo = State()
+    bg_remove = State()
+
 @router.message(Command("start"))
-async def start_cmd(message: types.Message):
-    welcome_text = (
-        "👋 *Привет! Я медиа-бот для работы с файлами.*\n\n"
-        "🎬 *Скачать видео:*\n"
-        "Отправь ссылку на YouTube, Rutube, Instagram или другой сайт\n\n"
-        "📸 *Улучшить фото:*\n"
-        "Отправь фото, и я улучшу его качество (резкость, контраст, яркость)\n\n"
-        "⚠️ *Ограничения:*\n"
-        "• Максимальный размер файла: 50 МБ\n"
-        "• Большие видео будут разбиты на части\n\n"
-        "🚀 *Начинай! Отправь ссылку или фото.*"
+async def start_cmd(message: types.Message, state: FSMContext, bot: types.Bot):
+    await state.clear()
+    
+    # Проверка подписки
+    is_subscribed = await check_subscription(bot, message.from_user.id)
+    
+    if not is_subscribed:
+        keyboard = await get_subscribe_keyboard(bot)
+        await message.answer(
+            text=SUBSCRIBE_MESSAGE,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+        return
+    
+    # Если подписан - показываем главное меню
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🎬 Скачать видео с YouTube", callback_data="mode_video"),
+            ],
+            [
+                InlineKeyboardButton(text="📸 Улучшить фото", callback_data="mode_photo"),
+            ],
+            [
+                InlineKeyboardButton(text="🖼️ Убрать фон с фото", callback_data="mode_bg_remove"),
+            ],
+        ]
     )
     
+    welcome_text = (
+        "👋 *Привет! Я медиа-бот.*\n\n"
+        "Выберите режим работы:"
+    )
+
     await message.answer(
         text=welcome_text,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+
+
+@router.callback_query(F.data == "mode_video")
+async def set_video_mode(callback: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+    # Проверяем подписку ещё раз
+    is_subscribed = await check_subscription(bot, callback.from_user.id)
+    
+    if not is_subscribed:
+        keyboard = await get_subscribe_keyboard(bot)
+        await callback.answer("❗️ Сначала нужно подписаться на канал!", show_alert=True)
+        return
+    
+    await state.set_state(UserMode.video)
+    await callback.message.edit_text(
+        "🎬 *Режим: Скачать видео с YouTube*\n\n"
+        "Отправьте ссылку на видео:",
         parse_mode="Markdown"
     )
+
+
+@router.callback_query(F.data == "mode_photo")
+async def set_photo_mode(callback: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+    is_subscribed = await check_subscription(bot, callback.from_user.id)
+    
+    if not is_subscribed:
+        keyboard = await get_subscribe_keyboard(bot)
+        await callback.answer("❗️ Сначала нужно подписаться на канал!", show_alert=True)
+        return
+    
+    await state.set_state(UserMode.photo)
+    await callback.message.edit_text(
+        "📸 *Режим: Улучшить фото*\n\n"
+        "Отправьте фото для улучшения:",
+        parse_mode="Markdown"
+    )
+
+
+@router.callback_query(F.data == "mode_bg_remove")
+async def set_bg_remove_mode(callback: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+    is_subscribed = await check_subscription(bot, callback.from_user.id)
+    
+    if not is_subscribed:
+        keyboard = await get_subscribe_keyboard(bot)
+        await callback.answer("❗️ Сначала нужно подписаться на канал!", show_alert=True)
+        return
+    
+    await state.set_state(UserMode.bg_remove)
+    await callback.message.edit_text(
+        "🖼️ *Режим: Убрать фон с фото*\n\n"
+        "Отправьте фото для удаления фона:",
+        parse_mode="Markdown"
+    )
+
+
+@router.callback_query(F.data == "check_subscription")
+async def check_sub(callback: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+    is_subscribed = await check_subscription(bot, callback.from_user.id)
+    
+    if is_subscribed:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🎬 Скачать видео с YouTube", callback_data="mode_video")],
+                [InlineKeyboardButton(text="📸 Улучшить фото", callback_data="mode_photo")],
+                [InlineKeyboardButton(text="🖼️ Убрать фон с фото", callback_data="mode_bg_remove")],
+            ]
+        )
+        await callback.message.edit_text(
+            "✅ *Спасибо за подписку!*\n\n"
+            "Выберите режим работы:",
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    else:
+        keyboard = await get_subscribe_keyboard(bot)
+        await callback.answer("❗️ Вы ещё не подписаны! Нажмите кнопку ниже.", show_alert=False)
+        await callback.message.edit_text(
+            text=SUBSCRIBE_MESSAGE,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+
+
+@router.callback_query(F.data == "back_to_menu")
+async def back_to_menu(callback: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+    await state.clear()
+    await callback.answer()
+    
+    # Проверяем подписку
+    is_subscribed = await check_subscription(bot, callback.from_user.id)
+    
+    if not is_subscribed:
+        keyboard = await get_subscribe_keyboard(bot)
+        try:
+            await callback.message.edit_text(
+                text=SUBSCRIBE_MESSAGE,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+        except:
+            await callback.message.answer(
+                text=SUBSCRIBE_MESSAGE,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+        return
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🎬 Скачать видео с YouTube", callback_data="mode_video")],
+            [InlineKeyboardButton(text="📸 Улучшить фото", callback_data="mode_photo")],
+            [InlineKeyboardButton(text="🖼️ Убрать фон с фото", callback_data="mode_bg_remove")],
+        ]
+    )
+    try:
+        await callback.message.edit_text(
+            "👋 *Привет! Я медиа-бот.*\n\n"
+            "Выберите режим работы:",
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        # Если не удалось редактировать - отправляем новое сообщение
+        await callback.message.answer(
+            "👋 *Привет! Я медиа-бот.*\n\n"
+            "Выберите режим работы:",
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
 
 
 @router.message(Command("help"))

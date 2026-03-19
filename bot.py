@@ -1,11 +1,10 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
-from aiogram.filters import Command
-from aiogram.types import Message
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN, LOG_LEVEL
-from handlers import video, start
+from handlers import video, start, photo
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, "INFO"),
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -13,15 +12,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 def create_session():
     return AiohttpSession(timeout=10)
-async def start_handler(message: Message, bot: Bot):
-    await message.answer("🟢 Бот работает!\n🎬 Отправь ссылку на видео")
 async def main():
     logger.info("🚀 Запуск бота...")
     session = create_session()
     bot = Bot(token=BOT_TOKEN, session=session)
-    dp = Dispatcher()
-    dp.message.register(start_handler, Command("start"))
-    dp.include_router(video.router) 
+    dp = Dispatcher(storage=MemoryStorage())
+    dp.include_router(video.router)
+    dp.include_router(photo.router)
+    dp.include_router(start.router)
     try:
         me = await bot.get_me()
         logger.info(f"✅ Авторизован: @{me.username}")
