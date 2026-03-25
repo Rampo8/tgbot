@@ -1,5 +1,5 @@
 import os
-BOT_TOKEN = "8669841170:AAGLNDcki7hVM6p6hAQQkzmzWmwVQnZ5H9o"
+BOT_TOKEN = "о"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
